@@ -15,10 +15,14 @@ import uuid
 
 def load_config():
     """Load environment and schema configuration"""
-    config_path = "/Users/amohiuddeen/Github/dq-framework-poc/config"
+    # Detect if running in Docker or Mac
+    if os.path.exists("/app/config"):
+        config_path = "/app/config"
+    else:
+        config_path = "/Users/amohiuddeen/Github/dq-framework-poc/config"
     
-    # Use mac_native for direct MinIO access from Mac
-    env = os.environ.get("ENV", "mac_native")
+    # Use local for Docker, mac_native for Mac
+    env = os.environ.get("ENV", "local")
     with open(f"{config_path}/env_config.json", "r") as f:
         env_config = json.load(f)[env]
     
@@ -369,23 +373,31 @@ def generate_and_write_data(spark, table_name, generator_func, num_rows, batch_t
     data, schema = generator_func(num_rows, batch_time, inject_bad_data)
     df = spark.createDataFrame(data, schema)
     
-    # Check if table exists
+    # Try append first, if fails create table
+    table_path = f"local.db.{table_name}"
     try:
-        spark.sql(f"DESCRIBE TABLE local.db.{table_name}")
-        mode = "append"
+        # Try to read table to see if it exists
+        spark.read.format("iceberg").load(table_path)
+        df.writeTo(table_path).append()
         print(f"   Appending to existing table...")
     except:
-        mode = "overwrite"
-        print(f"   Creating new table...")
+        # Table doesn't exist, create it
+        df.writeTo(table_path).create()
+        print(f"   Created new table...")
     
-    # Write to Iceberg (creates new snapshot)
-    df.write.format("iceberg").mode(mode).save(f"local.db.{table_name}")
+    # Get snapshot ID using Iceberg history
+    try:
+        history = spark.sql(f"SELECT * FROM {table_path}.history ORDER BY made_current_at DESC LIMIT 1")
+        if history.count() > 0:
+            snapshot_id = history.collect()[0]['snapshot_id']
+            print(f"   ✅ Written {num_rows} rows | Snapshot ID: {snapshot_id}")
+        else:
+            print(f"   ✅ Written {num_rows} rows")
+            snapshot_id = None
+    except Exception as e:
+        print(f"   ✅ Written {num_rows} rows")
+        snapshot_id = None
     
-    # Get snapshot ID
-    snapshot_df = spark.sql(f"SELECT snapshot_id FROM local.db.{table_name}.snapshots ORDER BY committed_at DESC LIMIT 1")
-    snapshot_id = snapshot_df.collect()[0][0]
-    
-    print(f"   ✅ Written {num_rows} rows | Snapshot ID: {snapshot_id}")
     return snapshot_id
 
 
@@ -428,7 +440,9 @@ def main():
                 spark, table_name, generator_func, num_rows, batch_time, inject_bad
             )
         except Exception as e:
-            print(f"   ❌ Error: {e}")
+            print(f"   ❌ Error: {str(e)[:200]}")
+            import traceback
+            traceback.print_exc()
     
     spark.stop()
     print("\n" + "=" * 70)

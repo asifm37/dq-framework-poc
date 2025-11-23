@@ -7,7 +7,11 @@ from datetime import datetime
 from typing import Optional, Dict
 import json
 
-DB_PATH = "/Users/amohiuddeen/Github/dq-framework-poc/results/dq_results.db"
+# Detect if running in Docker or Mac
+if os.path.exists("/app"):
+    DB_PATH = "/app/results/dq_results.db"
+else:
+    DB_PATH = "/Users/amohiuddeen/Github/dq-framework-poc/results/dq_results.db"
 
 
 def init_database():

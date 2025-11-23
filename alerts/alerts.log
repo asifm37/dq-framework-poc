@@ -1,0 +1,2 @@
+[2025-11-24 00:15:22] [WARNING] DATA QUALITY ALERT - Table: customer_transactions | Pass Rate: 71.00% (Threshold: 90.0%) | Rows: 100 | Failed: 29
+[2025-11-24 00:15:22] [WARNING] ALERT SUMMARY: 1 table(s) below quality threshold
