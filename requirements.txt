@@ -1,0 +1,5 @@
+pyspark==3.5.0
+pytest==7.4.0
+allure-pytest==2.13.2
+pandas==2.1.0
+s3fs==2023.9.0

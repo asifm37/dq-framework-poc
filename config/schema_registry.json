@@ -1,0 +1,21 @@
+{
+  "tables": {
+    "customer_transactions": {
+      "type": "structured",
+      "watermark_column": "txn_date",
+      "expectations": {
+        "schema": {
+          "txn_id": "string",
+          "amount": "double",
+          "total_limit": "double",
+          "txn_date": "timestamp"
+        },
+        "checks": [
+          {"column": "txn_id", "rule": "not_null"},
+          {"column": "amount", "rule": "range", "min": 0, "max": 1000000},
+          {"column": "amount", "rule": "compare", "operator": "<", "compare_to_column": "total_limit"}
+        ]
+      }
+    }
+  }
+}
