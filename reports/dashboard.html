@@ -156,7 +156,7 @@
     <div class="container">
         <div class="header">
             <h1>🛡️ Data Quality Dashboard</h1>
-            <p>Last Updated: 2025-11-24 00:15:01</p>
+            <p>Last Updated: 2025-11-24 00:23:13</p>
         </div>
         
         
@@ -168,12 +168,12 @@
             </div>
             <div class="stat-card">
                 <h3>Average Pass Rate</h3>
-                <div class="value">71.0%</div>
+                <div class="value">69.8%</div>
                 <div class="sub">Across all tables</div>
             </div>
             <div class="stat-card">
                 <h3>Total Validations</h3>
-                <div class="value">1</div>
+                <div class="value">2</div>
                 <div class="sub">Last 24 hours</div>
             </div>
             <div class="stat-card">
@@ -209,11 +209,11 @@
                     
             <tr>
                 <td>customer_transactions</td>
-                <td>1</td>
-                <td class="pass-rate bad">71.00%</td>
+                <td>2</td>
+                <td class="pass-rate bad">69.75%</td>
+                <td class="pass-rate">68.50%</td>
                 <td class="pass-rate">71.00%</td>
-                <td class="pass-rate">71.00%</td>
-                <td>0 / 1</td>
+                <td>0 / 2</td>
             </tr>
         
                 </tbody>
@@ -239,6 +239,15 @@
                 </thead>
                 <tbody>
                     
+            <tr>
+                <td>2025-11-23T18:52:44</td>
+                <td>customer_transactions</td>
+                <td>data_validation</td>
+                <td>200</td>
+                <td class="pass-rate bad">68.50%</td>
+                <td><span class="badge fail">FAIL</span></td>
+            </tr>
+        
             <tr>
                 <td>2025-11-23T18:44:27</td>
                 <td>customer_transactions</td>
@@ -345,7 +354,7 @@
     </div>
     
     <script>
-        const chartData = {"labels": ["2025-11-23 18:00"], "datasets": [{"label": "customer_transactions", "data": [71.0], "borderColor": "#667eea", "backgroundColor": "#667eea20", "tension": 0.3, "fill": false}]};
+        const chartData = {"labels": ["2025-11-23 18:00"], "datasets": [{"label": "customer_transactions", "data": [69.75], "borderColor": "#667eea", "backgroundColor": "#667eea20", "tension": 0.3, "fill": false}]};
         
         // Create line chart
         const ctx = document.getElementById('trendsChart').getContext('2d');
