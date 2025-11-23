@@ -24,7 +24,7 @@ with DAG('dq_k8s_v1', default_args=default_args, schedule_interval='@hourly') as
         "volume_mounts": [mount],
         "env_vars": {"S3_ENDPOINT": "http://minio:9000", "PYTHONPATH": "/app"},
         "is_delete_operator_pod": True,
-	"config_file": "/Users/amohiuddeen/.kube/config",
+	    "config_file": "/Users/amohiuddeen/.kube/config",
         "cluster_context": "docker-desktop",
         "in_cluster": False
     }
