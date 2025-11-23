@@ -1,19 +1,194 @@
 {
+  "config": {
+    "num_tables": 10,
+    "rows_per_batch": 100,
+    "table_type": "append_only"
+  },
   "tables": {
     "customer_transactions": {
-      "type": "structured",
-      "watermark_column": "txn_date",
+      "description": "Financial transactions with intentional amount vs limit violations",
       "expectations": {
         "schema": {
           "txn_id": "string",
+          "customer_id": "string",
           "amount": "double",
           "total_limit": "double",
-          "txn_date": "timestamp"
+          "currency": "string",
+          "txn_timestamp": "timestamp"
         },
         "checks": [
           {"column": "txn_id", "rule": "not_null"},
+          {"column": "customer_id", "rule": "not_null"},
           {"column": "amount", "rule": "range", "min": 0, "max": 1000000},
           {"column": "amount", "rule": "compare", "operator": "<", "compare_to_column": "total_limit"}
+        ]
+      }
+    },
+    "user_profiles": {
+      "description": "User registration events (append-only audit log)",
+      "expectations": {
+        "schema": {
+          "user_id": "string",
+          "email": "string",
+          "age": "int",
+          "country": "string",
+          "signup_timestamp": "timestamp"
+        },
+        "checks": [
+          {"column": "user_id", "rule": "not_null"},
+          {"column": "email", "rule": "not_null"},
+          {"column": "age", "rule": "range", "min": 18, "max": 120}
+        ]
+      }
+    },
+    "product_inventory": {
+      "description": "Inventory change events - INTENTIONAL BAD DATA (~15% invalid)",
+      "expectations": {
+        "schema": {
+          "product_id": "string",
+          "sku": "string",
+          "quantity": "int",
+          "reorder_level": "int",
+          "price": "double",
+          "updated_timestamp": "timestamp"
+        },
+        "checks": [
+          {"column": "product_id", "rule": "not_null"},
+          {"column": "quantity", "rule": "range", "min": 0, "max": 100000},
+          {"column": "quantity", "rule": "compare", "operator": ">", "compare_to_column": "reorder_level"},
+          {"column": "price", "rule": "range", "min": 0.01, "max": 1000000}
+        ]
+      }
+    },
+    "order_details": {
+      "description": "E-commerce order line items",
+      "expectations": {
+        "schema": {
+          "order_id": "string",
+          "product_id": "string",
+          "quantity": "int",
+          "unit_price": "double",
+          "total_amount": "double",
+          "order_timestamp": "timestamp"
+        },
+        "checks": [
+          {"column": "order_id", "rule": "not_null"},
+          {"column": "product_id", "rule": "not_null"},
+          {"column": "quantity", "rule": "range", "min": 1, "max": 1000},
+          {"column": "unit_price", "rule": "range", "min": 0.01, "max": 100000}
+        ]
+      }
+    },
+    "web_clickstream": {
+      "description": "User click events from web application",
+      "expectations": {
+        "schema": {
+          "session_id": "string",
+          "user_id": "string",
+          "page_url": "string",
+          "event_type": "string",
+          "duration_seconds": "int",
+          "event_timestamp": "timestamp"
+        },
+        "checks": [
+          {"column": "session_id", "rule": "not_null"},
+          {"column": "duration_seconds", "rule": "range", "min": 0, "max": 7200}
+        ]
+      }
+    },
+    "sensor_readings": {
+      "description": "IoT sensor data - INTENTIONAL BAD DATA (~15% invalid)",
+      "expectations": {
+        "schema": {
+          "sensor_id": "string",
+          "temperature": "double",
+          "humidity": "double",
+          "pressure": "double",
+          "reading_timestamp": "timestamp"
+        },
+        "checks": [
+          {"column": "sensor_id", "rule": "not_null"},
+          {"column": "temperature", "rule": "range", "min": -50, "max": 150},
+          {"column": "humidity", "rule": "range", "min": 0, "max": 100},
+          {"column": "pressure", "rule": "range", "min": 800, "max": 1200}
+        ]
+      }
+    },
+    "payment_events": {
+      "description": "Payment processing events",
+      "expectations": {
+        "schema": {
+          "payment_id": "string",
+          "order_id": "string",
+          "amount": "double",
+          "fee": "double",
+          "net_amount": "double",
+          "status": "string",
+          "payment_timestamp": "timestamp"
+        },
+        "checks": [
+          {"column": "payment_id", "rule": "not_null"},
+          {"column": "amount", "rule": "range", "min": 0.01, "max": 1000000},
+          {"column": "fee", "rule": "range", "min": 0, "max": 10000},
+          {"column": "net_amount", "rule": "compare", "operator": "<", "compare_to_column": "amount"}
+        ]
+      }
+    },
+    "email_campaigns": {
+      "description": "Email marketing campaign events",
+      "expectations": {
+        "schema": {
+          "campaign_id": "string",
+          "user_id": "string",
+          "email_type": "string",
+          "sent_count": "int",
+          "open_count": "int",
+          "click_count": "int",
+          "sent_timestamp": "timestamp"
+        },
+        "checks": [
+          {"column": "campaign_id", "rule": "not_null"},
+          {"column": "sent_count", "rule": "range", "min": 0, "max": 1000000},
+          {"column": "open_count", "rule": "compare", "operator": "<", "compare_to_column": "sent_count"},
+          {"column": "click_count", "rule": "compare", "operator": "<", "compare_to_column": "open_count"}
+        ]
+      }
+    },
+    "support_tickets": {
+      "description": "Customer support ticket events - INTENTIONAL BAD DATA (~15% invalid)",
+      "expectations": {
+        "schema": {
+          "ticket_id": "string",
+          "user_id": "string",
+          "priority": "int",
+          "category": "string",
+          "response_time_minutes": "int",
+          "sla_minutes": "int",
+          "created_timestamp": "timestamp"
+        },
+        "checks": [
+          {"column": "ticket_id", "rule": "not_null"},
+          {"column": "priority", "rule": "range", "min": 1, "max": 5},
+          {"column": "response_time_minutes", "rule": "range", "min": 0, "max": 10080},
+          {"column": "response_time_minutes", "rule": "compare", "operator": "<", "compare_to_column": "sla_minutes"}
+        ]
+      }
+    },
+    "api_request_logs": {
+      "description": "API request/response logs",
+      "expectations": {
+        "schema": {
+          "request_id": "string",
+          "endpoint": "string",
+          "method": "string",
+          "status_code": "int",
+          "response_time_ms": "int",
+          "request_timestamp": "timestamp"
+        },
+        "checks": [
+          {"column": "request_id", "rule": "not_null"},
+          {"column": "status_code", "rule": "range", "min": 100, "max": 599},
+          {"column": "response_time_ms", "rule": "range", "min": 0, "max": 60000}
         ]
       }
     }
