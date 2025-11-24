@@ -54,6 +54,37 @@ setup_cron() {
     fi
 }
 
+# Function to stop MinIO
+stop_minio() {
+    if pgrep -x "minio" > /dev/null; then
+        pkill -x minio
+        echo "✓ MinIO stopped"
+    else
+        echo "✓ MinIO not running"
+    fi
+}
+
+# Function to stop Airflow
+stop_airflow() {
+    if [ -f "airflow_start.sh" ]; then
+        airflow_start.sh stop > /dev/null 2>&1
+        echo "✓ Airflow stopped"
+    else
+        pkill -f airflow 2>/dev/null
+        echo "✓ Airflow stopped"
+    fi
+}
+
+# Function to stop Allure
+stop_allure() {
+    if pgrep -f "allure.*open" > /dev/null; then
+        pkill -f "allure.*open"
+        echo "✓ Allure stopped"
+    else
+        echo "✓ Allure not running"
+    fi
+}
+
 # Function to stop data injection cron
 stop_cron() {
     if crontab -l 2>/dev/null | grep -q "generate_hourly_data.py"; then
@@ -90,6 +121,14 @@ case "$1" in
         echo "MinIO Console: http://localhost:9001"
         ;;
     stop)
+        echo "=== Stopping All Services ==="
+        stop_cron
+        stop_allure
+        stop_airflow
+        stop_minio
+        echo "✓ All services stopped"
+        ;;
+    stop-cron)
         echo "=== Stopping Data Injection ==="
         stop_cron
         ;;
@@ -111,12 +150,13 @@ case "$1" in
         echo "✓ Tests complete"
         ;;
     *)
-        echo "Usage: $0 {start|stop|inject|test}"
+        echo "Usage: $0 {start|stop|stop-cron|inject|test}"
         echo ""
-        echo "  start  - Start MinIO, Airflow, Allure, and cron job"
-        echo "  stop   - Stop data injection cron job"
-        echo "  inject - Run data injection once"
-        echo "  test   - Run DQ tests and generate reports"
+        echo "  start      - Start MinIO, Airflow, Allure, and cron job"
+        echo "  stop       - Stop all services (MinIO, Airflow, Allure, cron)"
+        echo "  stop-cron  - Stop data injection cron only"
+        echo "  inject     - Run data injection once"
+        echo "  test       - Run DQ tests and generate reports"
         exit 1
         ;;
 esac
