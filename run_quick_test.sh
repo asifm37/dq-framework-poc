@@ -1,5 +1,4 @@
 #!/bin/bash
-# Quick test runner for local testing (bypasses Airflow)
 
 PROJECT_ROOT="/Users/amohiuddeen/Github/dq-framework-poc"
 cd "$PROJECT_ROOT"
@@ -8,7 +7,6 @@ echo "======================================================================"
 echo "🧪 Quick Test Runner (Local)"
 echo "======================================================================"
 
-# Run in Docker
 docker run --rm \
   -v "$PROJECT_ROOT:/app" \
   --add-host host.docker.internal:host-gateway \
@@ -45,4 +43,3 @@ echo "  Dashboard: open reports/dashboard.html"
 echo "  Allure:    open allure-report/index.html"
 echo "  Alerts:    cat alerts/alerts.log"
 echo "======================================================================"
-

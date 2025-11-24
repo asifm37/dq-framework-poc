@@ -1,13 +1,8 @@
-"""
-Results Tracker - Stores test results and Iceberg snapshot metadata
-"""
 import sqlite3
 import os
 from datetime import datetime
 from typing import Optional, Dict
-import json
 
-# Detect if running in Docker or Mac
 if os.path.exists("/app"):
     DB_PATH = "/app/results/dq_results.db"
 else:
@@ -15,13 +10,11 @@ else:
 
 
 def init_database():
-    """Initialize SQLite database with schema"""
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # Main results table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS validation_runs (
             run_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,7 +32,6 @@ def init_database():
         )
     """)
     
-    # Snapshot tracking table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS snapshot_tracking (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,19 +43,9 @@ def init_database():
         )
     """)
     
-    # Create indexes
-    cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_runs_timestamp 
-        ON validation_runs(run_timestamp)
-    """)
-    cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_runs_table 
-        ON validation_runs(table_name)
-    """)
-    cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_snapshot_table 
-        ON snapshot_tracking(table_name)
-    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_runs_timestamp ON validation_runs(run_timestamp)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_runs_table ON validation_runs(table_name)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_snapshot_table ON snapshot_tracking(table_name)")
     
     conn.commit()
     conn.close()
@@ -81,7 +63,6 @@ def save_validation_result(
     details: str = "",
     airflow_run_id: str = None
 ):
-    """Save validation result to database"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
@@ -112,7 +93,6 @@ def save_validation_result(
 
 
 def get_last_validated_snapshot(table_name: str) -> Optional[int]:
-    """Get the last successfully validated snapshot ID for a table"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
@@ -135,7 +115,6 @@ def update_snapshot_tracking(
     snapshot_id: int,
     validation_status: str
 ):
-    """Update snapshot tracking after validation"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
@@ -155,7 +134,6 @@ def update_snapshot_tracking(
 
 
 def get_recent_results(hours: int = 24) -> list:
-    """Get validation results from the last N hours"""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -173,7 +151,6 @@ def get_recent_results(hours: int = 24) -> list:
 
 
 def get_table_summary() -> Dict:
-    """Get summary statistics per table"""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -201,7 +178,6 @@ def get_table_summary() -> Dict:
 
 
 def get_hourly_trends(table_name: str = None, hours: int = 24) -> list:
-    """Get hourly pass rate trends"""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -234,10 +210,6 @@ def get_hourly_trends(table_name: str = None, hours: int = 24) -> list:
 
 
 if __name__ == "__main__":
-    # Initialize database
     init_database()
-    
-    # Example usage
     print("\n📊 Database initialized successfully!")
     print(f"Location: {DB_PATH}")
-

@@ -1,10 +1,8 @@
 #!/bin/bash
-# Run data injection independently (not part of Airflow DAG)
 
 PROJECT_ROOT="/Users/amohiuddeen/Github/dq-framework-poc"
 cd "$PROJECT_ROOT"
 
-# Parse arguments
 BATCH_TIME=""
 if [ "$1" != "" ]; then
     BATCH_TIME="$1"
@@ -26,6 +24,5 @@ echo ""
 echo "✅ Data injection complete!"
 echo ""
 echo "To validate data:"
-echo "  airflow dags trigger dq_hourly_pipeline"
+echo "  airflow dags trigger dq_hourly_pipeline_bash"
 echo "======================================================================"
-

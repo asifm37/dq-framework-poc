@@ -4,9 +4,8 @@ import os
 from pyspark.sql import SparkSession
 
 
-# Load Env Config
 def load_env_config():
-    env = os.environ.get("ENV", "local")  # Default to local
+    env = os.environ.get("ENV", "local")
     with open("/app/config/env_config.json", "r") as f:
         return json.load(f)[env]
 

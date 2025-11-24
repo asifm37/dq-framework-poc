@@ -1,5 +1,4 @@
 #!/bin/bash
-# Setup cron job for hourly data generation
 
 echo "======================================================================"
 echo "⏰ Setting up Hourly Data Generation Cron Job"
@@ -7,10 +6,8 @@ echo "======================================================================"
 
 CRON_LINE="0 * * * * cd /Users/amohiuddeen/Github/dq-framework-poc && /Users/amohiuddeen/Github/dq-framework-poc/run_data_injection.sh >> /Users/amohiuddeen/Github/dq-framework-poc/logs/data_injection.log 2>&1"
 
-# Create logs directory
 mkdir -p /Users/amohiuddeen/Github/dq-framework-poc/logs
 
-# Check if cron job already exists
 if crontab -l 2>/dev/null | grep -q "run_data_injection.sh"; then
     echo "⚠️  Cron job already exists!"
     echo ""
@@ -37,4 +34,3 @@ echo ""
 echo "To view logs:"
 echo "  tail -f /Users/amohiuddeen/Github/dq-framework-poc/logs/data_injection.log"
 echo "======================================================================"
-

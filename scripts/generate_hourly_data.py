@@ -1,11 +1,6 @@
-"""
-Hourly Data Generator - Creates synthetic data for all tables
-Runs independently (not part of Airflow DAG)
-"""
 from pyspark.sql import SparkSession
 from pyspark.sql.types import *
-from pyspark.sql.functions import lit
-from datetime import datetime, timedelta
+from datetime import datetime
 import random
 import json
 import os
@@ -14,14 +9,11 @@ import uuid
 
 
 def load_config():
-    """Load environment and schema configuration"""
-    # Detect if running in Docker or Mac
     if os.path.exists("/app/config"):
         config_path = "/app/config"
     else:
         config_path = "/Users/amohiuddeen/Github/dq-framework-poc/config"
     
-    # Use local for Docker, mac_native for Mac
     env = os.environ.get("ENV", "local")
     with open(f"{config_path}/env_config.json", "r") as f:
         env_config = json.load(f)[env]
@@ -33,7 +25,6 @@ def load_config():
 
 
 def init_spark(env_config):
-    """Initialize Spark session with Iceberg"""
     return SparkSession.builder \
         .appName("HourlyDataGenerator") \
         .config("spark.jars.packages",
@@ -52,14 +43,12 @@ def init_spark(env_config):
 
 
 def generate_customer_transactions(num_rows, batch_time, inject_bad_data=False):
-    """Generate transaction data"""
     data = []
     for i in range(num_rows):
         amount = random.uniform(10, 50000)
         limit = random.uniform(500, 100000)
         
-        # Good data: amount < limit (most of the time)
-        if random.random() < 0.05:  # 5% violations
+        if random.random() < 0.05:
             amount = limit + random.uniform(100, 1000)
         
         data.append((
@@ -83,7 +72,6 @@ def generate_customer_transactions(num_rows, batch_time, inject_bad_data=False):
 
 
 def generate_user_profiles(num_rows, batch_time, inject_bad_data=False):
-    """Generate user profile data"""
     data = []
     for i in range(num_rows):
         data.append((
@@ -105,13 +93,11 @@ def generate_user_profiles(num_rows, batch_time, inject_bad_data=False):
 
 
 def generate_product_inventory(num_rows, batch_time, inject_bad_data=True):
-    """Generate inventory data - INTENTIONAL BAD DATA"""
     data = []
     for i in range(num_rows):
         quantity = random.randint(0, 1000)
         reorder_level = random.randint(10, 100)
         
-        # Inject 15% bad data: quantity < reorder_level
         if inject_bad_data and random.random() < 0.15:
             quantity = random.randint(0, reorder_level - 1)
         
@@ -136,7 +122,6 @@ def generate_product_inventory(num_rows, batch_time, inject_bad_data=True):
 
 
 def generate_order_details(num_rows, batch_time, inject_bad_data=False):
-    """Generate order line items"""
     data = []
     for i in range(num_rows):
         quantity = random.randint(1, 10)
@@ -164,7 +149,6 @@ def generate_order_details(num_rows, batch_time, inject_bad_data=False):
 
 
 def generate_web_clickstream(num_rows, batch_time, inject_bad_data=False):
-    """Generate clickstream events"""
     data = []
     pages = ["/home", "/products", "/cart", "/checkout", "/profile"]
     events = ["click", "view", "scroll", "submit"]
@@ -191,16 +175,14 @@ def generate_web_clickstream(num_rows, batch_time, inject_bad_data=False):
 
 
 def generate_sensor_readings(num_rows, batch_time, inject_bad_data=True):
-    """Generate IoT sensor data - INTENTIONAL BAD DATA"""
     data = []
     for i in range(num_rows):
         temp = random.uniform(-10, 45)
         humidity = random.uniform(20, 80)
         pressure = random.uniform(950, 1050)
         
-        # Inject 15% bad data: out of range values
         if inject_bad_data and random.random() < 0.15:
-            temp = random.uniform(-100, 200)  # Way out of range
+            temp = random.uniform(-100, 200)
             humidity = random.uniform(-10, 150)
         
         data.append((
@@ -222,7 +204,6 @@ def generate_sensor_readings(num_rows, batch_time, inject_bad_data=True):
 
 
 def generate_payment_events(num_rows, batch_time, inject_bad_data=False):
-    """Generate payment events"""
     data = []
     statuses = ["completed", "pending", "failed", "refunded"]
     
@@ -254,7 +235,6 @@ def generate_payment_events(num_rows, batch_time, inject_bad_data=False):
 
 
 def generate_email_campaigns(num_rows, batch_time, inject_bad_data=False):
-    """Generate email campaign events"""
     data = []
     email_types = ["promotional", "newsletter", "transactional", "welcome"]
     
@@ -286,16 +266,14 @@ def generate_email_campaigns(num_rows, batch_time, inject_bad_data=False):
 
 
 def generate_support_tickets(num_rows, batch_time, inject_bad_data=True):
-    """Generate support ticket events - INTENTIONAL BAD DATA"""
     data = []
     categories = ["technical", "billing", "general", "complaint"]
     
     for i in range(num_rows):
         priority = random.randint(1, 5)
-        sla = priority * random.randint(60, 240)  # SLA based on priority
+        sla = priority * random.randint(60, 240)
         response_time = random.randint(10, sla - 10)
         
-        # Inject 15% bad data: response_time > sla
         if inject_bad_data and random.random() < 0.15:
             response_time = sla + random.randint(10, 500)
         
@@ -322,7 +300,6 @@ def generate_support_tickets(num_rows, batch_time, inject_bad_data=True):
 
 
 def generate_api_request_logs(num_rows, batch_time, inject_bad_data=False):
-    """Generate API request logs"""
     data = []
     endpoints = ["/api/users", "/api/products", "/api/orders", "/api/auth"]
     methods = ["GET", "POST", "PUT", "DELETE"]
@@ -351,7 +328,6 @@ def generate_api_request_logs(num_rows, batch_time, inject_bad_data=False):
     return data, schema
 
 
-# Map table names to generator functions
 GENERATORS = {
     "customer_transactions": generate_customer_transactions,
     "user_profiles": generate_user_profiles,
@@ -367,25 +343,20 @@ GENERATORS = {
 
 
 def generate_and_write_data(spark, table_name, generator_func, num_rows, batch_time, inject_bad_data):
-    """Generate and write data to Iceberg table"""
     print(f"\n📝 Generating {num_rows} rows for {table_name}...")
     
     data, schema = generator_func(num_rows, batch_time, inject_bad_data)
     df = spark.createDataFrame(data, schema)
     
-    # Try append first, if fails create table
     table_path = f"local.db.{table_name}"
     try:
-        # Try to read table to see if it exists
         spark.read.format("iceberg").load(table_path)
         df.writeTo(table_path).append()
         print(f"   Appending to existing table...")
     except:
-        # Table doesn't exist, create it
         df.writeTo(table_path).create()
         print(f"   Created new table...")
     
-    # Get snapshot ID using Iceberg history
     try:
         history = spark.sql(f"SELECT * FROM {table_path}.history ORDER BY made_current_at DESC LIMIT 1")
         if history.count() > 0:
@@ -402,33 +373,27 @@ def generate_and_write_data(spark, table_name, generator_func, num_rows, batch_t
 
 
 def main():
-    """Main execution"""
     print("=" * 70)
     print("🚀 HOURLY DATA GENERATOR")
     print("=" * 70)
     
-    # Parse arguments
     if len(sys.argv) > 1:
         batch_time = datetime.fromisoformat(sys.argv[1])
     else:
-        # Default to current hour start
         now = datetime.now()
         batch_time = now.replace(minute=0, second=0, microsecond=0)
     
     print(f"📅 Batch Time: {batch_time.isoformat()}")
     
-    # Load configs
     env_config, schema_config = load_config()
     num_rows = schema_config["config"]["rows_per_batch"]
     
     print(f"🔧 MinIO Endpoint: {env_config['s3_endpoint']}")
     print(f"📊 Rows per table: {num_rows}")
     
-    # Initialize Spark
     print("\n⚙️  Initializing Spark...")
     spark = init_spark(env_config)
     
-    # Generate data for all tables
     tables_to_bad_data = ["product_inventory", "sensor_readings", "support_tickets"]
     
     for table_name, table_config in schema_config["tables"].items():
@@ -452,4 +417,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
