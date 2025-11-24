@@ -12,7 +12,10 @@
 # Run DQ tests
 ./deploy_and_run.sh test
 
-# Stop data injection cron
+# Stop data injection cron only
+./deploy_and_run.sh stop-cron
+
+# Stop all services
 ./deploy_and_run.sh stop
 ```
 
@@ -23,7 +26,8 @@
 | `./deploy_and_run.sh start` | Start MinIO, Airflow, Allure, setup hourly cron |
 | `./deploy_and_run.sh inject` | Run data injection once |
 | `./deploy_and_run.sh test` | Run DQ tests, generate reports |
-| `./deploy_and_run.sh stop` | Stop data injection cron job |
+| `./deploy_and_run.sh stop-cron` | Stop data injection cron only |
+| `./deploy_and_run.sh stop` | Stop all services (MinIO, Airflow, Allure, cron) |
 
 ## Access Points
 
