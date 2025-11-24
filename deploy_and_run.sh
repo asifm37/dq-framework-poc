@@ -9,9 +9,11 @@ start_minio() {
         echo "✓ MinIO already running"
     else
         echo "Starting MinIO..."
+        export MINIO_ROOT_USER=admin
+        export MINIO_ROOT_PASSWORD=password
         nohup minio server ~/minio-data --console-address ":9001" > logs/minio.log 2>&1 &
         sleep 2
-        echo "✓ MinIO started"
+        echo "✓ MinIO started (user: admin, password: password)"
     fi
 }
 
@@ -19,7 +21,7 @@ start_minio() {
 start_airflow() {
     if [ -f "airflow_start.sh" ]; then
         echo "Starting Airflow..."
-        ./airflow_start.sh restart > /dev/null 2>&1
+        airflow_start.sh restart > /dev/null 2>&1
         echo "✓ Airflow started"
     else
         echo "⚠ airflow_start.sh not found, skipping"
