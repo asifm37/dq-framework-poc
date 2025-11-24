@@ -117,6 +117,8 @@ def calculate_validation_metrics(df, conditions):
 def test_validation(spark, schema_registry):
     init_database()
 
+    failures = []
+
     for table, config in schema_registry["tables"].items():
         with allure.step(f"Validate {table}"):
             try:
@@ -157,7 +159,7 @@ def test_validation(spark, schema_registry):
                 update_snapshot_tracking(table, current_snapshot, "success" if status == "pass" else "failed")
 
                 if pass_rate < 90.0:
-                    pytest.fail(f"Quality Failure: {pass_rate:.2f}% pass rate (threshold: 90%)")
+                    failures.append(f"{table}: {pass_rate:.2f}% pass rate (threshold: 90%)")
 
             except Exception as e:
                 allure.attach(str(e), name="Error", attachment_type=allure.attachment_type.TEXT)
@@ -167,4 +169,8 @@ def test_validation(spark, schema_registry):
                     details=f"Validation error: {str(e)}",
                     airflow_run_id=os.environ.get("AIRFLOW_RUN_ID", "manual")
                 )
-                pytest.fail(f"Validation error: {e}")
+                failures.append(f"{table}: Validation error - {str(e)}")
+
+    if failures:
+        failure_msg = "\n".join([f"  - {f}" for f in failures])
+        pytest.fail(f"Quality failures detected:\n{failure_msg}")
