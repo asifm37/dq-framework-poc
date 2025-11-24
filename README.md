@@ -1,72 +1,40 @@
-# DQ Framework POC - Clean Slate
+# DQ Framework POC
 
 ## Quick Start
 
-### Prerequisites
-- Python 3.10+
-- Docker
-- MinIO running at `192.168.1.2:9000` (or update `config/env_config.json`)
-
-### Single Command Deployment
-
-Run everything with one command:
-
 ```bash
-./deploy_and_run.sh
+# Start everything (MinIO, Airflow, Allure, cron job)
+./deploy_and_run.sh start
+
+# Run data injection manually
+./deploy_and_run.sh inject
+
+# Run DQ tests
+./deploy_and_run.sh test
+
+# Stop data injection cron
+./deploy_and_run.sh stop
 ```
 
-This script will:
-1. ✅ Set up Python virtual environment
-2. ✅ Install all dependencies (isolated from your system)
-3. ✅ Check MinIO availability
-4. ✅ Build Docker image for testing
-5. ✅ Inject data into Iceberg tables
-6. ✅ Run data quality tests
-7. ✅ Generate Allure reports
-8. ✅ Generate dashboard
-9. ✅ Check for data quality alerts
+## Commands
 
-### Optional: Specify Batch Time
+| Command | Description |
+|---------|-------------|
+| `./deploy_and_run.sh start` | Start MinIO, Airflow, Allure, setup hourly cron |
+| `./deploy_and_run.sh inject` | Run data injection once |
+| `./deploy_and_run.sh test` | Run DQ tests, generate reports |
+| `./deploy_and_run.sh stop` | Stop data injection cron job |
 
-```bash
-./deploy_and_run.sh "2025-11-24T10:00:00"
-```
+## Access Points
 
-### View Results
-
-After running the script:
-
+- **MinIO Console**: http://localhost:9001
+- **Allure Report**: http://localhost:8080
 - **Dashboard**: `open reports/dashboard.html`
-- **Allure Report**: `open allure-report/index.html`
 - **Alerts**: `cat alerts/alerts.log`
 
-## Project Structure
+## Configuration
 
-```
-dq-framework-poc/
-├── deploy_and_run.sh          # ⭐ Main deployment script
-├── config/
-│   ├── env_config.json        # Environment configurations
-│   └── schema_registry.json   # Table schemas and rules
-├── scripts/
-│   ├── generate_hourly_data.py    # Data generation
-│   ├── dashboard_generator.py     # Dashboard creation
-│   ├── alert_handler.py           # Alert processing
-│   └── results_tracker.py         # Results tracking
-├── tests/
-│   ├── conftest.py            # Pytest configuration
-│   ├── test_metadata.py       # Metadata validation tests
-│   └── test_validation.py     # Data quality tests
-├── infrastructure/
-│   └── Dockerfile             # Docker image for tests
-├── dags/
-│   └── dq_hourly_pipeline_bash.py  # Airflow DAG (optional)
-└── venv/                      # Virtual environment (auto-created)
-```
-
-## Environment Configuration
-
-Edit `config/env_config.json` to configure your environment:
+Edit `config/env_config.json`:
 
 ```json
 {
@@ -79,81 +47,37 @@ Edit `config/env_config.json` to configure your environment:
 }
 ```
 
+## Project Structure
+
+```
+dq-framework-poc/
+├── deploy_and_run.sh          # Main script
+├── config/                    # Configurations
+├── scripts/                   # Data generation & reports
+├── tests/                     # DQ tests
+├── infrastructure/Dockerfile  # Test container
+└── venv/                      # Python environment (auto-created)
+```
+
 ## Data Quality Rules
 
 Configured in `config/schema_registry.json`:
-
-- **Metadata Tests**: Verify table existence, schema, freshness
-- **Data Validation Tests**: Check data quality rules per table
-- **Alerts**: Automatically triggered on failures
-
-## Clean Up
-
-To start fresh again:
-
-```bash
-# Remove all generated files
-rm -rf logs/*.log allure-results/ allure-report/ results/dq_results.db reports/dashboard.html alerts/*.log
-
-# Stop services (if running in Docker)
-docker ps -a | grep dq-runner | awk '{print $1}' | xargs docker stop
-```
+- Metadata validation (existence, schema, freshness)
+- Data quality rules per table
+- Automatic alerts on failures
 
 ## Troubleshooting
 
-### MinIO Connection Issues
-
-Ensure MinIO is running and accessible:
-
+### Check Services
 ```bash
+# MinIO
 curl http://192.168.1.2:9000/minio/health/live
+
+# Cron jobs
+crontab -l
 ```
 
-### Virtual Environment Issues
-
-If venv has issues, recreate it:
-
+### Clean Up
 ```bash
-rm -rf venv
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-### Docker Issues
-
-Rebuild the image:
-
-```bash
-docker build -t dq-runner:latest -f infrastructure/Dockerfile .
-```
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     deploy_and_run.sh                       │
-│                  (Single Entry Point)                       │
-└──────────────┬──────────────────────────────────────────────┘
-               │
-       ┌───────┴────────┐
-       │                │
-       ▼                ▼
-┌─────────────┐  ┌─────────────────┐
-│   Python    │  │  Docker Build   │
-│    venv     │  │  dq-runner      │
-└──────┬──────┘  └────────┬────────┘
-       │                  │
-       ▼                  ▼
-┌──────────────┐   ┌──────────────┐
-│ Data         │   │ DQ Tests     │
-│ Injection    │──▶│ (Pytest)     │
-│ (PySpark)    │   │              │
-└──────┬───────┘   └──────┬───────┘
-       │                  │
-       ▼                  ▼
-┌──────────────┐   ┌──────────────┐
-│   MinIO      │   │  Results     │
-│  (Iceberg)   │   │  Dashboard   │
-└──────────────┘   └──────────────┘
+rm -rf logs/*.log allure-results/ allure-report/ results/*.db reports/*.html alerts/*.log
 ```

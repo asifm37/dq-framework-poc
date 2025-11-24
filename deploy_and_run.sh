@@ -1,159 +1,120 @@
 #!/bin/bash
 
-set -e  # Exit on error
-
 PROJECT_ROOT="/Users/amohiuddeen/Github/dq-framework-poc"
 cd "$PROJECT_ROOT"
 
-# Colors for output
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
-echo "======================================================================"
-echo -e "${BLUE}🚀 DQ Framework - Unified Deployment & Data Injection${NC}"
-echo "======================================================================"
-
-# ============================================================================
-# 1. Environment Setup
-# ============================================================================
-echo -e "\n${BLUE}📦 Step 1: Setting up Python environment...${NC}"
-
-if [ ! -d "venv" ]; then
-    echo "Creating virtual environment..."
-    python3 -m venv venv
-    echo -e "${GREEN}✅ Virtual environment created${NC}"
-fi
-
-source venv/bin/activate
-echo "Installing dependencies..."
-pip install --upgrade pip -q
-pip install -r requirements.txt -q
-echo -e "${GREEN}✅ Dependencies installed${NC}"
-
-# ============================================================================
-# 2. MinIO Check
-# ============================================================================
-echo -e "\n${BLUE}🗄️  Step 2: Checking MinIO availability...${NC}"
-
-MINIO_ENDPOINT="192.168.1.2:9000"
-if curl -s --connect-timeout 5 "http://${MINIO_ENDPOINT}/minio/health/live" > /dev/null 2>&1; then
-    echo -e "${GREEN}✅ MinIO is running at ${MINIO_ENDPOINT}${NC}"
-else
-    echo -e "${RED}❌ MinIO is not accessible at ${MINIO_ENDPOINT}${NC}"
-    echo -e "${YELLOW}Please ensure MinIO is running before proceeding${NC}"
-    exit 1
-fi
-
-# ============================================================================
-# 3. Docker Image Build
-# ============================================================================
-echo -e "\n${BLUE}🐳 Step 3: Building Docker image...${NC}"
-
-if docker images | grep -q "dq-runner.*latest"; then
-    echo "Docker image 'dq-runner:latest' already exists"
-    read -p "Rebuild? (y/N): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        docker build -t dq-runner:latest -f infrastructure/Dockerfile .
-        echo -e "${GREEN}✅ Docker image rebuilt${NC}"
+# Function to start MinIO
+start_minio() {
+    if pgrep -x "minio" > /dev/null; then
+        echo "✓ MinIO already running"
     else
-        echo -e "${GREEN}✅ Using existing Docker image${NC}"
+        echo "Starting MinIO..."
+        nohup minio server ~/minio-data --console-address ":9001" > logs/minio.log 2>&1 &
+        sleep 2
+        echo "✓ MinIO started"
     fi
-else
-    docker build -t dq-runner:latest -f infrastructure/Dockerfile .
-    echo -e "${GREEN}✅ Docker image built${NC}"
-fi
+}
 
-# ============================================================================
-# 4. Data Injection
-# ============================================================================
-echo -e "\n${BLUE}💉 Step 4: Running data injection...${NC}"
+# Function to start Airflow
+start_airflow() {
+    if [ -f "airflow_start.sh" ]; then
+        echo "Starting Airflow..."
+        ./airflow_start.sh restart > /dev/null 2>&1
+        echo "✓ Airflow started"
+    else
+        echo "⚠ airflow_start.sh not found, skipping"
+    fi
+}
 
-BATCH_TIME=""
-if [ "$1" != "" ]; then
-    BATCH_TIME="$1"
-    echo "Using provided batch time: $BATCH_TIME"
-fi
+# Function to start Allure
+start_allure() {
+    if pgrep -f "allure.*open" > /dev/null; then
+        echo "✓ Allure already running"
+    elif [ -d "allure-report" ]; then
+        echo "Starting Allure..."
+        nohup allure open allure-report -p 8080 > logs/allure.log 2>&1 &
+        echo "✓ Allure started on http://localhost:8080"
+    else
+        echo "⚠ No allure-report found, run tests first"
+    fi
+}
 
-echo "Starting data generation..."
-if [ "$BATCH_TIME" != "" ]; then
-    ENV=mac_native python3 scripts/generate_hourly_data.py "$BATCH_TIME"
-else
-    ENV=mac_native python3 scripts/generate_hourly_data.py
-fi
-
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✅ Data injection successful!${NC}"
-else
-    echo -e "${RED}❌ Data injection failed!${NC}"
-    exit 1
-fi
-
-# ============================================================================
-# 5. Run Data Quality Tests
-# ============================================================================
-echo -e "\n${BLUE}🧪 Step 5: Running data quality tests...${NC}"
-
-docker run --rm \
-  -v "$PROJECT_ROOT:/app" \
-  --add-host host.docker.internal:host-gateway \
-  -e ENV=local \
-  -e PYTHONPATH=/app \
-  dq-runner:latest \
-  bash -c "
-    echo '📊 Running Metadata Tests...'
-    pytest /app/tests/test_metadata.py --alluredir=/app/allure-results --clean-alluredir -v || true
+# Function to setup cron for data injection
+setup_cron() {
+    CRON_JOB="0 * * * * cd $PROJECT_ROOT && ENV=mac_native $PROJECT_ROOT/venv/bin/python3 $PROJECT_ROOT/scripts/generate_hourly_data.py >> $PROJECT_ROOT/logs/data_injection.log 2>&1"
     
-    echo ''
-    echo '📊 Running Data Validation Tests...'
-    pytest /app/tests/test_validation.py --alluredir=/app/allure-results -v || true
-    
-    echo ''
-    echo '📈 Generating Allure Report...'
-    allure generate /app/allure-results -o /app/allure-report --clean || echo 'Allure generation skipped'
-  "
+    if crontab -l 2>/dev/null | grep -q "generate_hourly_data.py"; then
+        echo "✓ Data injection cron already configured"
+    else
+        echo "Setting up hourly data injection..."
+        (crontab -l 2>/dev/null; echo "$CRON_JOB") | crontab -
+        echo "✓ Cron job added (runs every hour)"
+    fi
+}
 
-if [ $? -ne 0 ]; then
-    echo -e "${YELLOW}⚠️  Some tests may have failed, but continuing...${NC}"
-fi
+# Function to stop data injection cron
+stop_cron() {
+    if crontab -l 2>/dev/null | grep -q "generate_hourly_data.py"; then
+        crontab -l 2>/dev/null | grep -v "generate_hourly_data.py" | crontab -
+        echo "✓ Data injection cron removed"
+    else
+        echo "✓ No data injection cron found"
+    fi
+}
 
-# ============================================================================
-# 6. Generate Dashboard & Alerts
-# ============================================================================
-echo -e "\n${BLUE}📊 Step 6: Generating dashboard and checking alerts...${NC}"
-
-python3 scripts/dashboard_generator.py
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✅ Dashboard generated${NC}"
+# Setup virtual environment if needed
+if [ ! -d "venv" ]; then
+    echo "Setting up Python environment..."
+    python3 -m venv venv
+    source venv/bin/activate
+    pip install -q --upgrade pip
+    pip install -q -r requirements.txt
+    echo "✓ Environment ready"
 else
-    echo -e "${RED}❌ Dashboard generation failed${NC}"
+    source venv/bin/activate
 fi
 
-python3 scripts/alert_handler.py
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✅ Alerts checked${NC}"
-else
-    echo -e "${RED}❌ Alert checking failed${NC}"
-fi
-
-# ============================================================================
-# Summary
-# ============================================================================
-echo ""
-echo "======================================================================"
-echo -e "${GREEN}✅ Deployment & Data Quality Pipeline Complete!${NC}"
-echo "======================================================================"
-echo ""
-echo "📋 View Results:"
-echo "  Dashboard:  open reports/dashboard.html"
-echo "  Allure:     open allure-report/index.html"
-echo "  Alerts:     cat alerts/alerts.log"
-echo ""
-echo "📝 Logs:"
-echo "  Test logs:  Check docker output above"
-echo ""
-echo "======================================================================"
-
+# Main menu
+case "$1" in
+    start)
+        echo "=== Starting DQ Framework ==="
+        start_minio
+        start_airflow
+        start_allure
+        setup_cron
+        echo ""
+        echo "Dashboard: open reports/dashboard.html"
+        echo "Allure: http://localhost:8080"
+        echo "MinIO Console: http://localhost:9001"
+        ;;
+    stop)
+        echo "=== Stopping Data Injection ==="
+        stop_cron
+        ;;
+    inject)
+        echo "Running data injection..."
+        ENV=mac_native python3 scripts/generate_hourly_data.py
+        ;;
+    test)
+        echo "Running DQ tests..."
+        docker run --rm \
+          -v "$PROJECT_ROOT:/app" \
+          --add-host host.docker.internal:host-gateway \
+          -e ENV=local -e PYTHONPATH=/app \
+          dq-runner:latest \
+          bash -c "pytest /app/tests/ --alluredir=/app/allure-results --clean-alluredir -v && \
+                   allure generate /app/allure-results -o /app/allure-report --clean"
+        python3 scripts/dashboard_generator.py
+        python3 scripts/alert_handler.py
+        echo "✓ Tests complete"
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|inject|test}"
+        echo ""
+        echo "  start  - Start MinIO, Airflow, Allure, and cron job"
+        echo "  stop   - Stop data injection cron job"
+        echo "  inject - Run data injection once"
+        echo "  test   - Run DQ tests and generate reports"
+        exit 1
+        ;;
+esac
