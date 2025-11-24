@@ -1,40 +1,62 @@
 # DQ Framework POC
 
+Simple data quality framework with automated data injection and validation.
+
 ## Quick Start
 
+### 1. Prerequisites
+- MinIO running at `192.168.1.2:9000`
+- Airflow running (optional)
+- Python 3.10+
+
+### 2. Data Injection
+
 ```bash
-# Start everything (MinIO, Airflow, Allure, cron job)
-./deploy_and_run.sh start
+# Check if MinIO is ready
+./data_injection.sh check
 
-# Run data injection manually
-./deploy_and_run.sh inject
+# Start hourly data injection (cron)
+./data_injection.sh start
 
-# Run DQ tests
-./deploy_and_run.sh test
+# Run data injection once
+./data_injection.sh run
 
-# Stop data injection cron only
-./deploy_and_run.sh stop-cron
-
-# Stop all services
-./deploy_and_run.sh stop
+# Stop data injection
+./data_injection.sh stop
 ```
 
-## Commands
+### 3. Run Tests
 
-| Command | Description |
-|---------|-------------|
-| `./deploy_and_run.sh start` | Start MinIO, Airflow, Allure, setup hourly cron |
-| `./deploy_and_run.sh inject` | Run data injection once |
-| `./deploy_and_run.sh test` | Run DQ tests, generate reports |
-| `./deploy_and_run.sh stop-cron` | Stop data injection cron only |
-| `./deploy_and_run.sh stop` | Stop all services (MinIO, Airflow, Allure, cron) |
+```bash
+# Build test container (first time only)
+docker build -t dq-runner:latest -f infrastructure/Dockerfile .
 
-## Access Points
+# Run DQ tests
+docker run --rm \
+  -v $(pwd):/app \
+  --add-host host.docker.internal:host-gateway \
+  -e ENV=local -e PYTHONPATH=/app \
+  dq-runner:latest \
+  pytest /app/tests/ --alluredir=/app/allure-results --clean-alluredir -v
 
-- **MinIO Console**: http://localhost:9001
-- **Allure Report**: http://localhost:8080
-- **Dashboard**: `open reports/dashboard.html`
-- **Alerts**: `cat alerts/alerts.log`
+# Generate reports
+source venv/bin/activate
+python3 scripts/dashboard_generator.py
+python3 scripts/alert_handler.py
+```
+
+### 4. View Results
+
+```bash
+# Dashboard
+open reports/dashboard.html
+
+# Alerts
+cat alerts/alerts.log
+
+# Data injection log
+tail -f logs/data_injection.log
+```
 
 ## Configuration
 
@@ -55,30 +77,23 @@ Edit `config/env_config.json`:
 
 ```
 dq-framework-poc/
-├── deploy_and_run.sh          # Main script
+├── data_injection.sh          # Main script
 ├── config/                    # Configurations
-├── scripts/                   # Data generation & reports
+├── scripts/                   # Python scripts
 ├── tests/                     # DQ tests
-├── infrastructure/Dockerfile  # Test container
-└── venv/                      # Python environment (auto-created)
+└── infrastructure/            # Docker setup
 ```
-
-## Data Quality Rules
-
-Configured in `config/schema_registry.json`:
-- Metadata validation (existence, schema, freshness)
-- Data quality rules per table
-- Automatic alerts on failures
 
 ## Troubleshooting
 
-### Check Services
+### Check MinIO
 ```bash
-# MinIO
 curl http://192.168.1.2:9000/minio/health/live
+```
 
-# Cron jobs
-crontab -l
+### Check Cron
+```bash
+crontab -l | grep generate_hourly_data
 ```
 
 ### Clean Up
