@@ -25,7 +25,7 @@ def load_config():
 
 
 def init_spark(env_config):
-    return SparkSession.builder \
+    spark = SparkSession.builder \
         .appName("HourlyDataGenerator") \
         .config("spark.jars.packages",
                 "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.4.2,org.apache.hadoop:hadoop-aws:3.3.4") \
@@ -40,6 +40,9 @@ def init_spark(env_config):
         .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false") \
         .getOrCreate()
+    spark.sparkContext.setLogLevel("INFO")
+
+    return spark
 
 
 def generate_customer_transactions(num_rows, batch_time, inject_bad_data=False):

@@ -20,10 +20,10 @@ check_deployments() {
     echo "Checking deployments..."
     
     # Check MinIO
-    if curl -s --connect-timeout 3 "http://192.168.1.2:9000/minio/health/live" > /dev/null 2>&1; then
+    if curl -s --connect-timeout 3 "http://localhost:9000/minio/health/live" > /dev/null 2>&1; then
         echo "✓ MinIO is running"
     else
-        echo "✗ MinIO is NOT running at 192.168.1.2:9000"
+        echo "✗ MinIO is NOT running at localhost:9000"
         return 1
     fi
     
