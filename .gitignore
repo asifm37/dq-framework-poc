@@ -25,6 +25,7 @@ ENV/
 .coverage
 htmlcov/
 allure-results/
+allure-report/
 
 # Spark
 spark-warehouse/
@@ -33,11 +34,15 @@ derby.log
 
 # Logs
 *.log
+logs/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Project specific
+# Project specific - runtime generated files
+results/*.db
 results/*.db-journal
+reports/*.html
 reports/*.html.tmp
+alerts/*.log
